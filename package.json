@@ -1,0 +1,20 @@
+{
+  "name": "zearch",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n orch,web -c blue,magenta \"npm:dev:orch\" \"npm:dev:web\"",
+    "dev:orch": "npm run dev --workspace @zearch/orchestrator",
+    "dev:web": "npm run dev --workspace @zearch/frontend",
+    "start": "npm run start --workspace @zearch/orchestrator",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
