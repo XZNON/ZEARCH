@@ -4,16 +4,16 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        display: ['"Fraunces"', 'Georgia', 'serif'],
+        sans: ['"Hanken Grotesk"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['"Instrument Serif"', 'Georgia', 'serif'],
+        mono: ['"Space Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       colors: {
-        ink: '#1b1a1e',
-        paper: '#faf8f4',
+        ink: 'rgb(var(--ink) / <alpha-value>)',
+        accent: 'rgb(var(--accent-rgb) / <alpha-value>)',
       },
-      boxShadow: {
-        soft: '0 1px 2px rgba(24,24,27,0.04), 0 8px 30px rgba(24,24,27,0.06)',
-        ring: '0 0 0 1px rgba(24,24,27,0.06)',
+      borderRadius: {
+        console: '0.65rem',
       },
     },
   },

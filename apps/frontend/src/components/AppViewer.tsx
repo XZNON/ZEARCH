@@ -1,5 +1,6 @@
-import type { Dispatch, SetStateAction } from 'react';
+import { useState, useEffect, type Dispatch, type SetStateAction } from 'react';
 import type { Stage, AppResult } from '../types';
+import { Brackets } from './Brackets';
 
 interface AppViewerProps {
   result: AppResult;
@@ -14,108 +15,118 @@ interface AppViewerProps {
   busy: boolean;
 }
 
+const TOTAL_MS = 30 * 60 * 1000; // idle window the decay bar is scaled against
+
 export function AppViewer({ result, stage, note, elapsed, onTeardown, canShow, updatePrompt, setUpdatePrompt, applyUpdate, busy }: AppViewerProps) {
+  const [countdown, setCountdown] = useState('');
+  const [frac, setFrac] = useState(1);
+
+  useEffect(() => {
+    function tick() {
+      const ms = new Date(result.tearDownAt).getTime() - Date.now();
+      if (ms <= 0) { setCountdown('0m 00s'); setFrac(0); return; }
+      const totalSec = Math.floor(ms / 1000);
+      const m = Math.floor(totalSec / 60);
+      const s = totalSec % 60;
+      setCountdown(`${m}m ${String(s).padStart(2, '0')}s`);
+      setFrac(Math.max(0, Math.min(1, ms / TOTAL_MS)));
+    }
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [result.tearDownAt]);
+
   return (
-    <div className="card p-4 md:p-5">
+    <div className="reveal card p-4 md:p-5 overflow-hidden">
+      <Brackets />
+
+      {/* header row */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-xs uppercase tracking-widest text-ink/50">Your app</div>
-          <div className="font-display text-xl md:text-2xl tracking-tight truncate" title={result.prompt}>
+          <div className="label text-accent mb-1.5">// live page</div>
+          <div className="font-display text-2xl md:text-3xl tracking-tight truncate" title={result.prompt}>
             {result.prompt}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <StageBadge stage={stage} note={note} elapsed={elapsed} />
-          <a href={result.serviceUrl} target="_blank" rel="noreferrer" className="chip">Open ↗</a>
-          <button className="chip" onClick={onTeardown}>Destroy</button>
+          <a href={result.serviceUrl} target="_blank" rel="noreferrer" className="btn-ghost">Open ↗</a>
+          <button className="btn-ghost hover:!border-[rgb(var(--accent-rgb)/0.6)]" onClick={onTeardown}>Destroy</button>
         </div>
       </div>
 
-      <div className="mt-4 rounded-xl overflow-hidden border border-ink/10 bg-white relative" style={{ aspectRatio: '16/10', minHeight: 420 }}>
+      {/* viewport */}
+      <div
+        className="mt-4 rounded-console overflow-hidden border border-[var(--card-border)] bg-[var(--card-bg-solid)] relative"
+        style={{ aspectRatio: '16 / 10', minHeight: 440 }}
+      >
         {canShow ? (
-          <iframe title="zearch-app" src={result.serviceUrl} className="w-full h-full" />
+          <iframe title="zearch-page" src={result.serviceUrl} className="w-full h-full bg-white" />
         ) : (
-          <SkeletonBuild stage={stage} note={note} elapsed={elapsed} />
+          <SkeletonBuild note={note} elapsed={elapsed} />
         )}
       </div>
 
-      <div className="mt-4 flex flex-col md:flex-row gap-3">
-        <input
-          value={updatePrompt}
-          onChange={(e) => setUpdatePrompt(e.target.value)}
-          placeholder="Make it yearly instead of monthly, add inflation adjustment…"
-          className="flex-1 card px-4 py-3 outline-none"
-          onKeyDown={(e) => e.key === 'Enter' && !busy && applyUpdate()}
-          disabled={busy}
-        />
-        <button onClick={applyUpdate} disabled={busy || !updatePrompt.trim()} className="btn-primary rounded-xl px-5 py-3">Update →</button>
+      {/* refine console */}
+      <div className="mt-4 card field-glow p-2.5 flex flex-col md:flex-row gap-2.5">
+        <div className="flex-1 flex items-center gap-2.5 px-2">
+          <span className="font-mono text-accent select-none">▸</span>
+          <input
+            value={updatePrompt}
+            onChange={(e) => setUpdatePrompt(e.target.value)}
+            placeholder="Focus on his military campaigns · add a timeline · make it darker…"
+            className="flex-1 bg-transparent outline-none py-2 text-ink"
+            onKeyDown={(e) => e.key === 'Enter' && !busy && updatePrompt.trim() && applyUpdate()}
+            disabled={busy}
+          />
+        </div>
+        <button onClick={applyUpdate} disabled={busy || !updatePrompt.trim()} className="btn-primary px-5 py-2.5">
+          Refine →
+        </button>
       </div>
 
-      <div className="mt-3 text-xs text-ink/50 flex flex-wrap gap-x-4 gap-y-1">
-        <span>project: <code className="text-ink/70">{result.projectId}</code></span>
-        <span>service: <code className="text-ink/70">{result.serviceId}</code></span>
-        <span>auto-teardown: <code className="text-ink/70">{new Date(result.tearDownAt).toLocaleTimeString()}</code></span>
+      {/* decay meter */}
+      <div className="mt-4 flex items-center gap-3">
+        <span className="label text-ink/40 whitespace-nowrap">decays in</span>
+        <div className="flex-1 h-1 rounded-full bg-[rgb(var(--ink)/0.08)] overflow-hidden">
+          <div
+            className="h-full rounded-full transition-[width] duration-1000 ease-linear"
+            style={{ width: `${frac * 100}%`, background: frac < 0.15 ? '#e2502b' : 'var(--accent)' }}
+          />
+        </div>
+        <span className="font-mono text-sm text-ink/70 tnum whitespace-nowrap">{countdown}</span>
       </div>
     </div>
   );
 }
 
-interface StageBadgeProps {
-  stage: Stage;
-  note: string;
-  elapsed: number;
-}
-
-function StageBadge({ stage, note, elapsed }: StageBadgeProps) {
-  const live = stage === 'healthy';
+function StageBadge({ stage, note, elapsed }: { stage: Stage; note: string; elapsed: number }) {
+  const live = stage === 'ready';
   return (
-    <div className={`chip ${live ? '!bg-emerald-50 !border-emerald-200 text-emerald-700' : ''}`}>
-      {live ? <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> : <span className="dot-pulse" />}
-      <span className="text-xs">{live ? 'Live' : (note || 'Working…')}</span>
-      {!live && <span className="text-ink/40 text-xs tabular-nums">{elapsed}s</span>}
+    <div className="chip !cursor-default before:!content-none">
+      {live ? <span className="dot-live" /> : <span className="dot-pulse" />}
+      <span>{live ? 'LIVE' : (note || 'Working…')}</span>
+      {!live && <span className="text-ink/40 tnum">{elapsed.toFixed(0)}s</span>}
     </div>
   );
 }
 
-interface SkeletonBuildProps {
-  stage: Stage;
-  note: string;
-  elapsed: number;
-}
-
-function SkeletonBuild({ stage, note, elapsed }: SkeletonBuildProps) {
+function SkeletonBuild({ note, elapsed }: { note: string; elapsed: number }) {
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-center">
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 p-8 text-center">
+      <div className="reactor">
+        <span className="reactor-ring" />
+        <span className="reactor-ring r2" />
+        <span className="reactor-ring r3" />
+        <span className="reactor-core" />
+      </div>
       <div className="flex items-center gap-2">
-        <span className="dot-pulse" />
-        <span className="text-sm font-medium text-ink/80">{note || 'Building…'}</span>
-        <span className="text-sm text-ink/40 tabular-nums">{elapsed}s</span>
+        <span className="label text-accent">{note || 'Building your page'}</span>
+        <span className="font-mono text-xs text-ink/40 tnum">{elapsed.toFixed(0)}s</span>
       </div>
-      <div className="w-full max-w-xl grid grid-cols-6 gap-2">
-        {(['generating', 'packaging', 'pushing', 'building', 'deploying', 'healthy'] as Stage[]).map((s, i) => {
-          const order: Stage[] = ['generating', 'packaging', 'pushing', 'building', 'deploying', 'healthy'];
-          const idx = order.indexOf(stage);
-          return (
-            <div key={s} className="relative h-1.5 rounded-full overflow-hidden bg-ink/5">
-              <div className={`h-full rounded-full transition-all duration-500 ${i <= idx ? 'bg-[#ef5b36]' : ''}`} style={{ width: i <= idx ? '100%' : '0%' }} />
-              {i === idx && <div className="absolute inset-0 shimmer" />}
-            </div>
-          );
-        })}
+      <div className="w-full max-w-md h-1 rounded-full bg-[rgb(var(--ink)/0.08)] relative overflow-hidden">
+        <div className="absolute inset-0 shimmer" />
       </div>
-      <div className="text-xs text-ink/45">Locus is provisioning a real container. This usually takes 1–3 minutes.</div>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 w-full max-w-2xl mt-4">
-        <Skel /> <Skel /> <Skel />
-        <div className="md:col-span-3"><Skel tall /></div>
-      </div>
-    </div>
-  );
-}
-
-function Skel({ tall }: { tall?: boolean }) {
-  return (
-    <div className={`rounded-xl border border-ink/5 bg-white/60 relative overflow-hidden ${tall ? 'h-32' : 'h-14'}`}>
-      <div className="absolute inset-0 shimmer" />
     </div>
   );
 }
