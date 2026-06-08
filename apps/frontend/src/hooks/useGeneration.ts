@@ -15,7 +15,7 @@ export function useGeneration() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (stage === 'idle' || stage === 'healthy') return;
+    if (stage === 'idle' || stage === 'ready') return;
     const id = setInterval(() => setElapsed(Math.floor((Date.now() - startRef.current) / 1000)), 250);
     return () => clearInterval(id);
   }, [stage]);
@@ -23,15 +23,15 @@ export function useGeneration() {
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
   function pollStatus(deploymentId: string | undefined) {
-    if (!deploymentId) { setStage('healthy'); setStatusNote('App is live'); return; }
+    if (!deploymentId) { setStage('ready'); setStatusNote('Ready'); return; }
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(async () => {
       try {
         const s = await getStatus(deploymentId);
-        if (s.status === 'building') { setStage('building'); setStatusNote('Building container on Locus…'); }
-        else if (s.status === 'deploying') { setStage('deploying'); setStatusNote('Rolling out to the edge…'); }
-        else if (s.status === 'healthy') {
-          setStage('healthy'); setStatusNote('Live');
+        if (s.status === 'building' || s.status === 'deploying') {
+          setStage('building'); setStatusNote('Almost ready…');
+        } else if (s.status === 'healthy') {
+          setStage('ready'); setStatusNote('Ready');
           if (pollRef.current) clearInterval(pollRef.current);
         } else if (s.status === 'failed' || s.status === 'cancelled') {
           setError(`Deployment ${s.status}`); setStage('idle');
@@ -45,19 +45,15 @@ export function useGeneration() {
     setError(null); setResult(null); setElapsed(0);
     startRef.current = Date.now();
     try {
-      setStage('generating'); setStatusNote('Claude is sketching your app…');
+      setStage('thinking'); setStatusNote('Thinking…');
       const gen = await postJSON('/api/generate', { prompt: userPrompt });
       if (gen.error) throw new Error(gen.error);
 
-      setStage('packaging'); setStatusNote('Writing files and packaging source…');
-      await new Promise((r) => setTimeout(r, 200));
-
-      setStage('pushing'); setStatusNote('Creating project and pushing to Locus Build…');
+      setStage('building'); setStatusNote('Building…');
       const dep = await postJSON('/api/deploy', { html: gen.html, prompt: userPrompt });
       if (dep.error) throw new Error(dep.error);
 
       setResult({ ...dep, html: gen.html, prompt: userPrompt });
-      setStage('building'); setStatusNote('Locus is building the container (~1-3 min)…');
       pollStatus(dep.deploymentId);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -65,18 +61,16 @@ export function useGeneration() {
     }
   }
 
-  // Returns true on success so the caller can clear its input only when the update went through.
   async function applyUpdate(updatePrompt: string): Promise<boolean> {
     if (!updatePrompt.trim() || !result) return false;
-    setError(null); setStage('generating'); setStatusNote('Applying your changes…');
+    setError(null); setStage('thinking'); setStatusNote('Thinking…');
     try {
       const gen = await postJSON('/api/update', { prompt: result.prompt, previousHtml: result.html, updatePrompt });
       if (gen.error) throw new Error(gen.error);
-      setStage('pushing'); setStatusNote('Re-deploying the updated app…');
+      setStage('building'); setStatusNote('Building…');
       const dep = await postJSON('/api/deploy', { html: gen.html, prompt: result.prompt });
       if (dep.error) throw new Error(dep.error);
       setResult({ ...dep, html: gen.html, prompt: result.prompt });
-      setStage('building'); setStatusNote('Building updated container…');
       pollStatus(dep.deploymentId);
       return true;
     } catch (e) {
@@ -91,8 +85,8 @@ export function useGeneration() {
     setResult(null); setStage('idle'); setStatusNote('');
   }
 
-  const busy = stage !== 'idle' && stage !== 'healthy';
-  const canShow = stage === 'healthy' && !!result?.serviceUrl;
+  const busy = stage !== 'idle' && stage !== 'ready';
+  const canShow = stage === 'ready' && !!result?.serviceUrl;
 
   return { stage, statusNote, error, result, elapsed, busy, canShow, run, applyUpdate, teardown };
 }

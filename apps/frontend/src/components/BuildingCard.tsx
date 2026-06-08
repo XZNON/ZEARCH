@@ -1,4 +1,5 @@
 import type { Stage } from '../types';
+import { Brackets } from './Brackets';
 
 interface BuildingCardProps {
   stage: Stage;
@@ -7,46 +8,79 @@ interface BuildingCardProps {
   prompt: string;
 }
 
+const PHASES: { id: Stage; label: string }[] = [
+  { id: 'thinking', label: 'Thinking' },
+  { id: 'building', label: 'Building' },
+  { id: 'ready',    label: 'Ready' },
+];
+
+// Honest, flavorful log lines revealed over time — what's actually happening, dressed up a little.
+const LOG = [
+  'parsing query',
+  'selecting synthesis mode',
+  'drafting page structure',
+  'generating interactive HTML',
+  'wiring charts & interactions',
+  'hosting live page',
+];
+
 export function BuildingCard({ stage, note, elapsed, prompt }: BuildingCardProps) {
-  const order: Stage[] = ['generating', 'packaging', 'pushing', 'building', 'deploying', 'healthy'];
-  const idx = Math.max(0, order.indexOf(stage));
+  const idx = Math.max(0, PHASES.findIndex((s) => s.id === stage));
+  const shown = Math.min(LOG.length, 1 + Math.floor(elapsed / 2.2));
+
   return (
-    <div className="mt-10 card p-6 md:p-8">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="dot-pulse" />
-          <span className="text-sm font-medium text-ink/80">{note || 'Starting…'}</span>
+    <div className="mt-10 card p-6 md:p-8 overflow-hidden">
+      <Brackets />
+      <div className="flex flex-col sm:flex-row items-center gap-6">
+        <div className="reactor shrink-0">
+          <span className="reactor-ring" />
+          <span className="reactor-ring r2" />
+          <span className="reactor-ring r3" />
+          <span className="reactor-core" />
         </div>
-        <span className="text-sm text-ink/50 tabular-nums">{elapsed}s</span>
-      </div>
-      <div className="mt-4 text-lg text-ink/90">
-        Building: <span className="font-medium">“{prompt}”</span>
-      </div>
-      <div className="mt-6 grid grid-cols-6 gap-2">
-        {order.map((s, i) => (
-          <div key={s} className="relative h-1.5 rounded-full overflow-hidden bg-ink/5">
-            <div className={`h-full rounded-full transition-all duration-500 ${i <= idx ? 'bg-[#ef5b36]' : ''}`} style={{ width: i <= idx ? '100%' : '0%' }} />
-            {i === idx && <div className="absolute inset-0 shimmer" />}
+
+        <div className="flex-1 min-w-0 w-full">
+          <div className="flex items-center justify-between">
+            <span className="label text-accent">{note || 'Synthesizing'}</span>
+            <span className="font-mono text-sm text-ink/50 tnum">{elapsed.toFixed(0)}s</span>
           </div>
-        ))}
+          <div className="mt-2 font-display text-2xl md:text-3xl tracking-tight truncate" title={prompt}>
+            “{prompt}”
+          </div>
+
+          {/* 3-phase progress */}
+          <div className="mt-5 grid grid-cols-3 gap-2">
+            {PHASES.map((s, i) => (
+              <div key={s.id} className="relative h-1.5 rounded-full overflow-hidden bg-[rgb(var(--ink)/0.08)]">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: i <= idx ? '100%' : '0%', background: 'var(--accent)' }}
+                />
+                {i === idx && <div className="absolute inset-0 shimmer" />}
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 grid grid-cols-3 text-center">
+            {PHASES.map((s, i) => (
+              <span key={s.id} className={`label ${i <= idx ? 'text-ink/75' : 'text-ink/30'}`}>{s.label}</span>
+            ))}
+          </div>
+        </div>
       </div>
-      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-ink/55">
-        {order.slice(0, 6).map((s, i) => (
-          <span key={s} className={i <= idx ? 'text-ink/80' : ''}>{labelFor(s)}</span>
-        ))}
+
+      {/* streaming log */}
+      <div className="mt-6 pt-5 border-t border-[var(--card-border)] font-mono text-xs space-y-1.5">
+        {LOG.slice(0, shown).map((line, i) => {
+          const done = i < shown - 1 || stage === 'ready';
+          return (
+            <div key={line} className="flex items-center gap-2.5 text-ink/55">
+              <span className={done ? 'text-[#38d39f]' : 'text-accent'}>{done ? '✓' : '▸'}</span>
+              <span className={done ? 'text-ink/45' : 'text-ink/80'}>{line}</span>
+              {!done && <span className="caret text-accent">▮</span>}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
-}
-
-function labelFor(s: Stage): string {
-  switch (s) {
-    case 'generating': return 'Design';
-    case 'packaging': return 'Package';
-    case 'pushing': return 'Push';
-    case 'building': return 'Build';
-    case 'deploying': return 'Rollout';
-    case 'healthy': return 'Live';
-    default: return s;
-  }
 }
