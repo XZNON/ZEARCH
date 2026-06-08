@@ -1,0 +1,16 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Dependencies / build output
+node_modules/
+dist/
+
+# Generated app HTML files (on-disk mirror; data, not source)
+apps/orchestrator/apps/
+
+CLAUDE.md
+PLAN.md
+.agent
+docs

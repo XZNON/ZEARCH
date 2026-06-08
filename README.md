@@ -90,28 +90,24 @@ Auto teardown after inactivity
 
 1. **Clone the repo**
    ```
-   git clone https://github.com/your-username/liveanswer.git
-   cd liveanswer/backend
+   git clone https://github.com/XZNON/ZEARCH.git
+   cd ZEARCH
    ```
-2. **Install dependencies**
+2. **Install dependencies** (from repo root — installs all workspaces)
    ```
    npm install
    ```
-3. **Set environment variables**
+3. **Set environment variables** — create a `.env` file at the repo root:
    ```
-    set LOCUS_API_KEY=your_locus_api_key
-    set LOCUS_BUILD_TOKEN=your_locus_build_token
+   GROQ_API_KEY="your_groq_api_key"
    ```
-4. **Run the server**
+4. **Run** (orchestrator on :8080 + frontend dev server on :5173, in parallel)
    ```
-    node index.js
+   npm run dev
    ```
 
-Server runs at:
-
-```
-http://localhost:8080
-```
+Orchestrator API: `http://localhost:8080`  
+Frontend: `http://localhost:5173`
 
 ---
 
