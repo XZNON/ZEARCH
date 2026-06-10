@@ -16,40 +16,73 @@ export interface LLMProvider {
   extraBody: Record<string, unknown>;
 }
 
+// Two model tiers per provider — a cheap/fast model for Stage A classification and a strong
+// model for Stage C generation. A "provider" is still one base URL + one credential; only the
+// model / token budget / extraBody swap per tier (resolved inside the factory below), so the
+// LLMProvider interface and client.ts stay tier-ignorant. Default tier is 'strong' everywhere.
+export type ModelTier = "cheap" | "strong";
+
 function posInt(value: string | undefined, fallback: number): number {
   const n = Number(value);
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
-type ProviderFactory = () => LLMProvider;
+type ProviderFactory = (tier: ModelTier) => LLMProvider;
 
 const PROVIDERS: Record<string, ProviderFactory> = {
-  groq: () => ({
-    name: 'groq',
-    baseURL: process.env.GROQ_BASE_URL || process.env.GROQ_BASE || 'https://api.groq.com/openai/v1',
+  groq: (tier) => ({
+    name: "groq",
+    baseURL:
+      process.env.GROQ_BASE_URL ||
+      process.env.GROQ_BASE ||
+      "https://api.groq.com/openai/v1",
     apiKey: process.env.GROQ_API_KEY,
-    model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
+    // Cheap tier swaps gpt-oss-120b → a small fast model with a tiny budget for classification;
+    // strong tier is the unchanged generation config.
+    model:
+      tier === "cheap"
+        ? process.env.GROQ_CLASSIFY_MODEL || "llama-3.1-8b-instant"
+        : process.env.GROQ_MODEL || "openai/gpt-oss-120b",
     // Free Groq tiers cap tokens-per-minute (e.g. 8000 TPM), and max_completion_tokens
     // counts toward that budget, so the default is modest. Raise via env on a higher tier.
-    maxTokens: posInt(process.env.GROQ_MAX_TOKENS, 7000),
-    extraBody: { reasoning_effort: process.env.GROQ_REASONING_EFFORT || 'low' },
+    maxTokens:
+      tier === "cheap"
+        ? posInt(process.env.GROQ_CLASSIFY_MAX_TOKENS, 512)
+        : posInt(process.env.GROQ_MAX_TOKENS, 7000),
+    extraBody: {
+      reasoning_effort:
+        tier === "cheap"
+          ? process.env.GROQ_CLASSIFY_REASONING_EFFORT || "low"
+          : process.env.GROQ_REASONING_EFFORT || "low",
+    },
   }),
-  openai: () => ({
-    name: 'openai',
-    baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+  openai: (tier) => ({
+    name: "openai",
+    baseURL: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
     apiKey: process.env.OPENAI_API_KEY,
-    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-    maxTokens: posInt(process.env.OPENAI_MAX_TOKENS, 16000),
+    model:
+      tier === "cheap"
+        ? process.env.OPENAI_CLASSIFY_MODEL || "gpt-4o-mini"
+        : process.env.OPENAI_MODEL || "gpt-5.4-mini",
+    maxTokens:
+      tier === "cheap"
+        ? posInt(process.env.OPENAI_CLASSIFY_MAX_TOKENS, 512)
+        : posInt(process.env.OPENAI_MAX_TOKENS, 16000),
     extraBody: {},
   }),
 };
 
 export const SUPPORTED_PROVIDERS = Object.keys(PROVIDERS);
 
-export function resolveProvider(name: string = process.env.LLM_PROVIDER || 'groq'): LLMProvider {
+export function resolveProvider(
+  name: string = process.env.LLM_PROVIDER || "groq",
+  tier: ModelTier = "strong",
+): LLMProvider {
   const factory = PROVIDERS[name.toLowerCase()];
   if (!factory) {
-    throw new Error(`Unknown LLM_PROVIDER "${name}". Supported: ${SUPPORTED_PROVIDERS.join(', ')}`);
+    throw new Error(
+      `Unknown LLM_PROVIDER "${name}". Supported: ${SUPPORTED_PROVIDERS.join(", ")}`,
+    );
   }
-  return factory();
+  return factory(tier);
 }

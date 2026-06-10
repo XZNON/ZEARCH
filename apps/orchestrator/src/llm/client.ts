@@ -2,7 +2,7 @@
 // OpenAI-compatible /chat/completions endpoint and returns the assistant's text.
 // This is the only module that talks HTTP to an LLM.
 
-import { resolveProvider } from './providers.js';
+import { resolveProvider, type ModelTier } from './providers.js';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -15,9 +15,10 @@ interface ChatCompletionResponse {
 }
 
 export async function chatCompletion(
-  { messages, provider }: { messages: ChatMessage[]; provider?: string },
+  { messages, provider, tier = 'strong' }:
+  { messages: ChatMessage[]; provider?: string; tier?: ModelTier },
 ): Promise<string> {
-  const llm = resolveProvider(provider);
+  const llm = resolveProvider(provider, tier);
   if (!llm.apiKey) throw new Error(`${llm.name} API key not set (set ${llm.name.toUpperCase()}_API_KEY)`);
 
   const res = await fetch(`${llm.baseURL}/chat/completions`, {

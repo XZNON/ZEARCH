@@ -1,7 +1,7 @@
 // Routes that turn prompts into HTML: POST /api/generate and POST /api/update.
 
 import { Router, type Request, type Response } from 'express';
-import { generateAppHTML } from '../pipeline/index.js';
+import { generateAppHTML, runGeneration } from '../pipeline/index.js';
 
 export const generateRouter = Router();
 
@@ -9,8 +9,15 @@ generateRouter.post('/generate', async (req: Request, res: Response) => {
   const { prompt } = (req.body || {}) as { prompt?: string };
   if (!prompt || typeof prompt !== 'string') return res.status(400).json({ error: 'prompt required' });
   try {
-    const html = await generateAppHTML({ prompt });
-    res.json({ html, sizeBytes: Buffer.byteLength(html, 'utf8') });
+    // Stage A→C: classify → composeSystemPrompt(archetype), with a flat-prompt cutover on
+    // low confidence. classification is null when the cutover fired.
+    const { html, classification } = await runGeneration({ prompt });
+    res.json({
+      html,
+      sizeBytes: Buffer.byteLength(html, 'utf8'),
+      archetype: classification?.archetype ?? null,
+      title: classification?.title ?? null,
+    });
   } catch (e) {
     console.error('[/generate] error:', e);
     res.status(500).json({ error: (e as Error).message });

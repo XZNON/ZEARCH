@@ -29,6 +29,7 @@ export const HARD_REQUIREMENTS = `HARD REQUIREMENTS (non-negotiable — the page
 - At the top of the babel script, ALWAYS destructure from window.Recharts (even if some are unused):
   const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } = window.Recharts;
 - All JSX lives inside that one text/babel script. Do not use ES module syntax (import/export), TypeScript, or any tag/library not loaded above.
+- VALID JS LITERALS: every value in your data must be a syntactically valid JavaScript literal — Babel parses the whole script and ONE bad token blanks the entire page. A numeric field must hold a real number (1990, 2004), never a bare token like 1990s, 300BC, or 1.2M. Fuzzy/range/decade values (e.g. "1990s", "early 2000s", "300 BC", "~1.2M") MUST be quoted strings. Keep keys that you sort or chart numeric (year: 1995); put the human-readable label in a separate string field (label: "1990s").
 - Self-contained means self-contained: any data the page shows is hard-coded into the file. Image references, if any, must be inline SVG or data-URIs — never hotlinked external images that may 404.`;
 
 // ─────────────────────────────────────────────────────────────────────────────
