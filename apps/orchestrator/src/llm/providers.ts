@@ -25,14 +25,10 @@ const PROVIDERS: Record<string, ProviderFactory> = {
       process.env.GROQ_BASE ||
       "https://api.groq.com/openai/v1",
     apiKey: process.env.GROQ_API_KEY,
-    // Cheap tier swaps gpt-oss-120b → a small fast model with a tiny budget for classification;
-    // strong tier is the unchanged generation config.
     model:
       tier === "cheap"
         ? process.env.GROQ_CLASSIFY_MODEL || "llama-3.1-8b-instant"
         : process.env.GROQ_MODEL || "openai/gpt-oss-120b",
-    // Free Groq tiers cap tokens-per-minute (e.g. 8000 TPM), and max_completion_tokens
-    // counts toward that budget, so the default is modest. Raise via env on a higher tier.
     maxTokens:
       tier === "cheap"
         ? posInt(process.env.GROQ_CLASSIFY_MAX_TOKENS, 512)
