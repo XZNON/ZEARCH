@@ -1,11 +1,3 @@
-// LLM provider abstraction.
-// Every supported provider speaks the OpenAI-compatible POST /chat/completions
-// API, so a "provider" is just transport config: base URL, credential, default
-// model, token budget, and any provider-specific body fields. Selecting between
-// them is done with the LLM_PROVIDER env var (default "groq"). Pointing the
-// "openai" provider's OPENAI_BASE_URL elsewhere lets it drive any other
-// OpenAI-compatible endpoint without new code.
-
 export interface LLMProvider {
   name: string;
   baseURL: string;
@@ -16,10 +8,6 @@ export interface LLMProvider {
   extraBody: Record<string, unknown>;
 }
 
-// Two model tiers per provider — a cheap/fast model for Stage A classification and a strong
-// model for Stage C generation. A "provider" is still one base URL + one credential; only the
-// model / token budget / extraBody swap per tier (resolved inside the factory below), so the
-// LLMProvider interface and client.ts stay tier-ignorant. Default tier is 'strong' everywhere.
 export type ModelTier = "cheap" | "strong";
 
 function posInt(value: string | undefined, fallback: number): number {
