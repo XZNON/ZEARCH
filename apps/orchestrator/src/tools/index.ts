@@ -9,6 +9,7 @@
 import './web-search.js';         // A2 — web_search (Tavily)
 import './wikipedia.js';          // A3 — wikipedia_summary
 import './images.js';             // A4 — image_search
+import './emit-build-spec.js';    // B1 — emit_build_spec (terminal)
 
 export { registerTool, getTool, listTools, toOpenAIToolSchemas } from './registry.js';
 export type { Tool, ToolResult, OpenAIToolSchema } from './types.js';
