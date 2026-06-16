@@ -21,7 +21,7 @@ export const HARD_REQUIREMENTS = `HARD REQUIREMENTS (non-negotiable — the page
     4. <script src="https://unpkg.com/recharts@2.15.4/umd/Recharts.js" crossorigin></script>
     5. <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js" crossorigin></script>  (only if CSV parsing is needed)
     6. <script src="https://cdn.tailwindcss.com"></script>
-    7. <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    7. <script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>  (MUST be pinned to v7 — v8 breaks via the automatic JSX runtime)
   Then, AFTER all of the above, put the single <script type="text/babel" data-presets="react"> tag that contains your whole app.
   React, react-dom, prop-types, and Recharts MUST always be included — never skip them, even if a page uses no chart.
 - The <body> must contain exactly <div id="root"></div> followed by the <script type="text/babel" data-presets="react"> tag, and the app must mount via ReactDOM.createRoot(document.getElementById('root')).render(<App />).
@@ -29,6 +29,15 @@ export const HARD_REQUIREMENTS = `HARD REQUIREMENTS (non-negotiable — the page
 - At the top of the babel script, ALWAYS destructure from window.Recharts (even if some are unused):
   const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } = window.Recharts;
 - All JSX lives inside that one text/babel script. Do not use ES module syntax (import/export), TypeScript, or any tag/library not loaded above.
+- STRUCTURE — ALL your component logic and JSX MUST live inside a top-level \`function App() { ... }\`, and the LAST lines of the babel script MUST mount it. Never write a bare top-level \`return (...)\` (Babel errors with "'return' outside of function" and the page is blank). The script must follow exactly this skeleton:
+    const { useState, useEffect, useMemo, useCallback, useRef } = React;
+    const { /* …Recharts… */ } = window.Recharts;
+    // any helper components / data here
+    function App() {
+      // hooks + logic
+      return ( /* the page JSX */ );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 - VALID JS LITERALS: every value in your data must be a syntactically valid JavaScript literal — Babel parses the whole script and ONE bad token blanks the entire page. A numeric field must hold a real number (1990, 2004), never a bare token like 1990s, 300BC, or 1.2M. Fuzzy/range/decade values (e.g. "1990s", "early 2000s", "300 BC", "~1.2M") MUST be quoted strings. Keep keys that you sort or chart numeric (year: 1995); put the human-readable label in a separate string field (label: "1990s").
 - Self-contained means self-contained: any data the page shows is hard-coded into the file. Image references, if any, must be inline SVG or data-URIs — never hotlinked external images that may 404.`;
 

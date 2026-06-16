@@ -21,13 +21,15 @@ HARD REQUIREMENTS:
     4. <script src="https://unpkg.com/recharts@2.15.4/umd/Recharts.js" crossorigin></script>
     5. <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js" crossorigin></script>  (only if CSV needed)
     6. <script src="https://cdn.tailwindcss.com"></script>
-    7. <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    7. <script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>  (MUST be pinned to v7 — v8 breaks via the automatic JSX runtime)
   Then AFTER all the above scripts, put the <script type="text/babel" data-presets="react"> tag.
   Recharts and prop-types MUST always be included — never skip them.
 - The <body> must contain <div id="root"></div> and a <script type="text/babel" data-presets="react"> that mounts the app via ReactDOM.createRoot.
+- STRUCTURE — ALL component logic and JSX MUST live inside a top-level function App() { ... return (...) }, and the LAST line of the babel script MUST mount it: ReactDOM.createRoot(document.getElementById('root')).render(<App />); — never write a bare top-level return (Babel errors "'return' outside of function" → blank page).
 - Destructure hooks as:  const { useState, useEffect, useMemo, useCallback, useRef } = React;
 - ALWAYS destructure from window.Recharts at the top of your babel script (even if not all are used):
   const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area } = window.Recharts;
+- NEVER use ES module syntax (import/export) or TypeScript anywhere. React, ReactDOM, and Recharts are GLOBALS from the CDN scripts — access them only via window/destructuring (e.g. window.Recharts), never via \`import\`. A single import statement blanks the entire page.
 
 DESIGN (very important):
 - Editorial and content-rich — think a beautiful magazine or museum-quality explainer, not a dashboard or a form.
