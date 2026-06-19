@@ -7,6 +7,11 @@
 
 - **Date:** 2026-06-19
 - **Contributor:** XZNON (solo)
+- **Session summary (2026-06-19, Phase E):** **Phase E — Cutover, frontend, docs: COMPLETE (E1–E3), not committed.**
+  **E1** — `pipeline/index.ts` rewritten: `runGeneration()` now calls `runArchitect(prompt) → BuildSpec` then `runBuilder({ spec }) → html`; `generateAppHTML` re-exported for `/api/update`. `routes/generate.ts` updated to destructure `{ html, archetype, title }` directly (dropping `classification`). `pipeline/classify.ts` marked retired with a comment block.
+  **E2** — `apps/frontend/src/types.ts`: `Stage` updated to `'idle' | 'planning' | 'researching' | 'building' | 'ready'`. `BuildingCard.tsx`: PHASES extended to 4 items (Planning/Researching/Building/Ready), grids updated to `grid-cols-4`. `useGeneration.ts`: `setStage('thinking')` → `setStage('planning')` with a 1.5s setTimeout to `'researching'` in `run()`; `applyUpdate()` uses `'planning'` only (Builder-only path skips 'researching').
+  **E3** — Docs sweep: `CLAUDE.md`, `README.md`, `.agent/TASKS.md`, `.agent/STATE.md`, `PLAN.md`, `.agent/PLAN.md` updated to reflect the shipped Agentic Core pipeline. Groq TPM gotcha retired; Locus copy gotcha retired; pipeline description updated; LLM provider updated to OpenAI as default.
+  **Verification:** `npm run typecheck` green across all workspaces. Branch `feature/agentic-core-phase-e`, **awaiting the user's commit**. **Next: Phase 5 — Persistence & sharing.**
 - **Session summary (2026-06-19, Phase D):** **Phase D — Live Data: COMPLETE (D1–D2), not committed.**
   **D1** — New `apps/orchestrator/src/routes/live.ts`: CORS-bypass proxy route (`GET /live`, `OPTIONS /live`) with allowlist guard (SSRF), AbortController 15s timeout, lazy-eviction in-memory cache (`X-Cache: HIT/MISS`). Three new env vars in `config.ts` (`LIVE_PROXY_ALLOW_HOSTS`, `LIVE_PROXY_CACHE_TTL_S`, `LIVE_PROXY_API_KEY`). `server.ts` mounts `liveRouter` at `/api` before `appsRouter`.
   **D2** — `prompts/architect.ts`: replaced the sparse liveEndpoint/snapshot two-liner with a full expanded block covering when to use it, four named keyless APIs (Open-Meteo, Open-Notify, CoinGecko, exchangerate.host), the url/description/shape sub-fields, and the requirement to still populate facts[]. Added "Current weather in London" routing example. `pipeline/builder.ts`: `buildUserMessage` now builds a `liveBlock` (non-empty only when `spec.liveEndpoint` is defined) appended before the closing HTML instruction — contains the proxy fetch pattern, the React useState/useEffect template with status badge, and the build-time snapshot as a JSON literal. Correction message extended to preserve the live useEffect on retry. **Verification:** `npm run typecheck` green across all workspaces. Branch `feature/agentic-core-phase-d`, **awaiting the user's commit**. **Next: Phase E (cutover).**
@@ -77,20 +82,17 @@
 
 ## Current Phase
 
-- **Milestone:** **Agentic Core re-architecture — Phase D (Live Data) ✅ COMPLETE (not committed). Phase E (cutover) is next.**
-  (Phase 2 — Archetype routing was ✅ done, but its classify/cutover wiring is now superseded.)
-- **Overall progress:** Phase 0 ✅ · Phase R ✅ · Phase 1 ✅ · Phase 2 ✅ (wiring superseded) · Phase A ✅ (uncommitted) · Phase B ✅ (uncommitted) · **Phase C ✅ (uncommitted)** · Phase D–E — planned, not started.
-- **Status:** Plan re-architected to **Architect → Builder** (see `PLAN.md` §3, D12–D15). The
-  live pipeline today still runs the Phase 2 `classify→composeSystemPrompt→generate` path; it stays
-  as-is until **Phase E** rewires `runGeneration` to Architect→Builder and retires `classify.ts`.
-  The archetype templates + `hard-requirements.ts` become the **Builder's render contract**.
-  **Phase A landed the inert tool layer** (`apps/orchestrator/src/tools/`: registry + `web_search`/
-  `wikipedia_summary`/`image_search`) and the **Build Spec** contract in `@zearch/shared` — all
-  additive, nothing wired in yet. **Next work:** Phase B — `runArchitect(query) → BuildSpec`, the
-  OpenAI function-calling loop over `toOpenAIToolSchemas()` + the Architect system prompt (B1, B2).
+- **Milestone:** **Agentic Core re-architecture — Phase E (Cutover, frontend, docs) ✅ COMPLETE. All phases A–E shipped.**
+- **Overall progress:** Phase 0 ✅ · Phase R ✅ · Phase 1 ✅ · Phase 2 ✅ (wiring superseded) · Phase A ✅ · Phase B ✅ · Phase C ✅ · Phase D ✅ · **Phase E ✅**
+- **Status:** The live pipeline is **Architect → Builder**. `pipeline/index.ts` (`runGeneration`) calls `runArchitect(query) → BuildSpec`, then `runBuilder(spec) → html`. `classify.ts` and the confidence cutover are retired. `/api/update` uses `generateAppHTML` (Builder-only flat path). `/api/live` proxy is live. Frontend shows Planning → Researching → Building → Ready. **Next: Phase 5 — Persistence & sharing.**
 
 ## Completed
 
+- **Phase A — Tooling foundation** — tool registry under `apps/orchestrator/src/tools/`; `web_search` (Tavily), `wikipedia_summary`, `image_search`, `emit-build-spec`; `BuildSpec`/`BuildSpecFact`/`BuildSpecImage`/`LiveEndpoint`/`ArchetypeSlug` added to `@zearch/shared`.
+- **Phase B — Architect** — `pipeline/architect.ts`: `runArchitect(query) → BuildSpec` OpenAI function-calling loop (MAX_ITERATIONS=8, 90s, degrades to `ungroundedSpec`); `chatCompletionWithTools()` in `llm/client.ts`; `ARCHITECT_SYSTEM_PROMPT` in `prompts/architect.ts`.
+- **Phase C — Builder** — `pipeline/builder.ts`: `runBuilder({ spec }) → html`; `buildUserMessage(spec)` with grounded facts/images; validate/repair loop (MAX_ATTEMPTS=3); never throws.
+- **Phase D — Live data** — `routes/live.ts`: `/api/live` CORS-bypass proxy with SSRF allowlist, 15s timeout, lazy-eviction cache, `X-Cache` header; `config.ts` gains three new env vars; Architect prompt expanded with live-endpoint guidance; Builder generates a `liveBlock` with proxy fetch + snapshot fallback.
+- **Phase E — Cutover, frontend, docs** — `pipeline/index.ts` rewired to Architect→Builder; `classify.ts` retired; frontend stage labels → Planning/Researching/Building/Ready; docs sweep.
 - **Phase 0 — Planning.** `docs/idea.md` (source of truth) and `PLAN.md` (build plan) written; work board seeded in `.agent/TASKS.md`.
 - **Phase R — Monorepo restructure** *(merged, PR #1)*. npm workspaces monorepo: `apps/orchestrator`, `apps/frontend`, `packages/shared` (`@zearch/shared` API contract). Source re-laid into the screaming-architecture layout (`routes/`, `pipeline/`, `llm/`, `prompts/`, `store/`, `lib/`). One hoisted `node_modules`; `npm run typecheck` green across all three workspaces.
 - **Phase 1 frontend editorial redesign** *(merged, PR #2)* — tasks P1-2, P1-3, P1-4, P1-7, P1-8, P1-9, P1-10, P1-11:
@@ -107,41 +109,31 @@
 
 ## In Progress
 
-- **Branch `feature/phase-2-archetype-routing`** holds the uncommitted Phase 2 changes: `llm/providers.ts`, `llm/client.ts`, `pipeline/generate.ts`, `pipeline/index.ts`, `routes/generate.ts`, and new `pipeline/classify.ts`. Repo-root `.env` also gained the cheap-tier classify vars (gitignored). Typecheck green. Awaiting the user's commit.
+- No active in-progress branches. All Phase A–E work is complete.
 - **Owner:** XZNON (solo project).
 - **Open PRs:** none.
 
 ## Next
 
-Phase 2 is merged (PR #4). Start the **Agentic Core** at **Phase A — Tooling foundation**:
+Phase E is complete. The Agentic Core (Phases A–E) is fully shipped.
 
-1. **(Workflow)** Produce `.agent/implementations/implementation_PA.md` per `.agent/PROMPTS.md` —
-   one copy-paste session plan covering every Phase A task (A1–A5).
-2. **A1–A4** — tool registry + `Tool` interface; Tavily (search+extract; `TAVILY_API_KEY`),
-   `wikipedia_summary`, `image_search` tools under `apps/orchestrator/src/tools/`.
-3. **A5** — **Build Spec** contract in `@zearch/shared` (the Architect↔Builder handoff).
-4. Then **B → C → D → E** (Architect → Builder → live data → cutover). See `.agent/TASKS.md`.
+**Phase 5 — Persistence & sharing:**
+1. **P5-1** — Opt-in persistent/shareable link ("keep this page", extend TTL).
+2. **P5-2** — Client-side search history (localStorage recents strip).
+3. **P5-3** — Rebuild `apps` Map + teardown timers from disk on orchestrator restart.
 
 ## Blockers
 
-- **The Agentic Core needs two funded keys before it can run end-to-end:**
-  - **`OPENAI_API_KEY`** — used for all calls (Architect + Builder). Earlier it returned 429
-    `insufficient_quota`; the account must be funded for live runs. (STATE earlier noted live calls
-    later succeeded — re-verify before the first end-to-end test.)
-  - **`TAVILY_API_KEY`** (new, Phase A) — the Architect's web search+extract tool. Free tier to start.
-- **Groq/TPM no longer applies to the plan** (D15). We're OpenAI-for-everything; the old
-  `GROQ_MAX_TOKENS` 8000-TPM workaround is moot. Groq code stays as a provider option but isn't the path.
-- **`.env` gotcha (still applies):** key lines must be `KEY="val"` with **no spaces around `=`** —
-  Node's `--env-file` parser silently ignores `KEY = "val"`.
-- **Env dependency:** running end-to-end needs a working `OPENAI_API_KEY` (and, once Phase A lands,
-  `TAVILY_API_KEY`) in repo-root `.env`. Without them the server boots but generation fails.
+- **No blocking issues.** All Agentic Core phases are complete.
+- **`.env` gotcha (still applies):** key lines must be `KEY="val"` with **no spaces around `=`** — Node's `--env-file` parser silently ignores `KEY = "val"`.
+- **Env dependency:** end-to-end generation needs `OPENAI_API_KEY` and `TAVILY_API_KEY` in repo-root `.env`. Without `OPENAI_API_KEY`, Architect/Builder calls fail. Without `TAVILY_API_KEY`, `web_search` silently fails and the Architect degrades to an ungrounded spec.
 
 ## Important Notes
 
 - **Git: the user commits everything personally. Never run `git commit`/`git push`.** Stage changes, confirm `npm run typecheck` is green, and stop.
 - **Use the OpenAI provider for ALL LLM calls** (generation + classification + manual checks) per the user's standing instruction. `LLM_PROVIDER=openai` in repo-root `.env`; don't switch to Groq even for quick tests. (The earlier "OpenAI out of quota" blocker no longer holds — live calls succeed.)
 - **The CDN block in `prompts/shared.ts` is load-bearing.** Exact script URLs, their order (React 18 UMD, Recharts 2.15.4, Babel standalone, Tailwind CDN), and the `window.Recharts` destructure must be preserved byte-for-byte through any prompt rewrite — generated apps are babel-in-browser and break otherwise.
-- **Groq TPM cap.** Free tier caps tokens-per-minute (~8000). `GROQ_MAX_TOKENS` defaults to a modest 7000; a 16000 request returns HTTP 413. `/api/update` resends the entire prior HTML and is the most exposed.
+- **Groq TPM cap no longer applies** (D15): OpenAI is the active provider. Groq remains a `LLM_PROVIDER=groq` option but is not the recommended path.
 - **State is in-process.** The `apps` Map and teardown timers are NOT rebuilt from disk on restart (HTML is mirrored to `APPS_DIR`, but live status/pending teardowns are lost on restart). Deferred to P5-3.
 - **`PUBLIC_BASE` correctness matters.** `serviceUrl` is built from it and iframed directly; a wrong value (e.g. localhost in prod) breaks app display even when deploy "succeeds."
 - **Gitignored local-only docs:** `CLAUDE.md`, `PLAN.md`, `.agent/`, `docs/` are gitignored — changes there don't ship. (STATE.md lives at repo root; decide intentionally whether to track it.)
@@ -154,5 +146,5 @@ A new contributor starting today should:
 
 1. **Read first:** `CLAUDE.md` (architecture + gotchas), this `STATE.md`, `.agent/TASKS.md` (work board), `docs/idea.md` (vision). For the next task, also `apps/orchestrator/src/prompts/shared.ts`.
 2. **Branches:** uncommitted Phase 1 work is on `feature/phase-1-finish` (commit + merge it first). The Phase R and earlier Phase 1 frontend branches are already merged.
-3. **Set up:** root `.env` with `GROQ_API_KEY` **and `GROQ_MAX_TOKENS=6500`** (the free tier rejects the default 7000 — see Blockers), then `npm install` → `npm run dev` (orchestrator :8080 + frontend :5173). Verify with `npm run typecheck`.
-4. **Continue with:** **Phase 2 — archetype routing.** The prompt system is already prebuilt under `prompts/archetypes/`; the work is wiring the classifier + template composition into `pipeline/` (P2-1→P2-3) and adding model tiers (P2-4).
+3. **Set up:** root `.env` with `OPENAI_API_KEY` and `TAVILY_API_KEY`, then `npm install` → `npm run dev`. Verify with `npm run typecheck`.
+4. **Continue with:** **Phase 5 — Persistence & sharing** (P5-1 through P5-3). The Agentic Core (Phases A–E) is fully shipped.

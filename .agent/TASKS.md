@@ -96,13 +96,13 @@
 | D1   | `/api/live` proxy on the orchestrator — CORS bypass + server-side key injection + cache hook, so generated pages can fetch live APIs   | orchestrator | done   | —            |
 | D2   | Live-with-snapshot pattern: Architect emits a live-endpoint spec **+** a build-time snapshot; Builder writes the page to fetch live through `/api/live` and fall back to the snapshot on failure | generator    | done   | D1, B1, C1   |
 
-## Phase E — Cutover, frontend, docs
+## Phase E — Cutover, frontend, docs _(done)_
 
 | id   | title                                                                                                                                  | area      | status | deps     |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------ | --------- | ------ | -------- |
-| E1   | Rewire `pipeline/index.ts` + routes: `runGeneration` = Architect → Builder; retire `classify.ts` + the confidence cutover. `/api/update` stays a Builder-only re-gen (prev HTML + instruction, no new tool loop) | generator | todo   | B1, C2   |
-| E2   | Frontend real build feed (Planning → Researching → Building); optional streaming of the Architect's tool calls                         | frontend  | todo   | E1       |
-| E3   | Docs sweep — `CLAUDE.md`, `PLAN.md`, `.agent/PLAN.md`, `STATE.md`, `README.md` reflect the shipped agentic core                        | docs      | todo   | E1       |
+| E1   | Rewire `pipeline/index.ts` + routes: `runGeneration` = Architect → Builder; retire `classify.ts` + the confidence cutover. `/api/update` stays a Builder-only re-gen (prev HTML + instruction, no new tool loop) | generator | done   | B1, C2   |
+| E2   | Frontend real build feed (Planning → Researching → Building); optional streaming of the Architect's tool calls                         | frontend  | done   | E1       |
+| E3   | Docs sweep — `CLAUDE.md`, `PLAN.md`, `.agent/PLAN.md`, `STATE.md`, `README.md` reflect the shipped agentic core                        | docs      | done   | E1       |
 
 ## Phase 5 — Persistence & sharing
 
@@ -126,3 +126,4 @@
 ## Done log
 
 - _(Phase 0 planning artifacts — see table above.)_
+- **Phase A–E (Agentic Core)** — tool registry (`web_search`/`wikipedia_summary`/`image_search`/`emit-build-spec`), `BuildSpec` in `@zearch/shared`, `runArchitect()`, `runBuilder()` with validate/repair, `/api/live` proxy, `pipeline/index.ts` rewired to Architect→Builder, `classify.ts` retired, frontend Planning→Researching→Building→Ready stages, docs sweep.

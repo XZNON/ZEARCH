@@ -17,19 +17,20 @@ The project was originally built on **Locus** for both LLM and deployment; that 
   - `server.ts` — builds the Express app (middleware + route mounting + `/health`). No boot logic.
   - `config.ts` — the one place env is read for app config: `PORT`, `PUBLIC_BASE`, `APPS_DIR`.
   - `routes/` — thin HTTP layer: `generate.ts` (`/api/generate`, `/api/update`), `deploy.ts` (`/api/deploy`, `/api/status/:id`, `/api/teardown`), `apps.ts` (`GET /app/:id`).
-  - `pipeline/` — **the core**. `generate.ts` = `generateAppHTML()` (Stage C: build messages from the shared prompt, call the LLM, `extractHTML`). `index.ts` is the seam where Stage A (classify) and B (ground) will compose later.
-  - `llm/` — `providers.ts` (provider abstraction: each provider is just `baseURL`/`apiKey`/`model`/`maxTokens`/`extraBody`; `resolveProvider()` picks by `LLM_PROVIDER`, default `groq`; built-ins `groq` + `openai`) and `client.ts` (`chatCompletion()`, the only module that talks HTTP to an LLM).
+  - `pipeline/` — **the core**. `architect.ts` = `runArchitect(query) → BuildSpec` (OpenAI function-calling loop over the tool registry; bounded at MAX_ITERATIONS=8 / 90s; degrades to an ungrounded spec on failure). `builder.ts` = `runBuilder(spec) → html` (composes render contract from `prompts/archetypes/` + Build Spec; validate/repair loop, MAX_ATTEMPTS=3). `generate.ts` = legacy `generateAppHTML()` (flat single-prompt path, still used by `/api/update`). `index.ts` = `runGeneration()` — wired to Architect→Builder (Phase E). `classify.ts` = retired (Phase E).
+  - `tools/` — **the Architect's tool registry** (`apps/orchestrator/src/tools/`). Each tool is `{ name, description, parameters (JSON schema), execute() }` and self-registers. Tools: `web_search` (Tavily, behind a `SearchProvider` seam; `TAVILY_API_KEY`), `wikipedia_summary` (Wikipedia REST, keyless), `image_search` (Wikimedia/Commons, license-safe), `emit-build-spec` (terminal — causes the loop to emit a BuildSpec and exit).
+  - `llm/` — `providers.ts` (provider abstraction: each provider is just `baseURL`/`apiKey`/`model`/`maxTokens`/`extraBody`; `resolveProvider()` picks by `LLM_PROVIDER`, default `groq`; built-ins `groq` + `openai`) and `client.ts` (`chatCompletion()` for text-only calls; `chatCompletionWithTools()` for the Architect's function-calling loop — takes `LoopMessage[]` + OpenAI tool schemas, never throws on null content).
   - `prompts/` — `shared.ts` holds the load-bearing `SYSTEM_PROMPT`; `index.ts` re-exports. Per-archetype templates will be added here (Phase 2).
   - `store/` — `appStore.ts` (in-memory `apps` Map + disk mirror at `APPS_DIR`; `deployGeneratedApp`/`getApp`/`getDeploymentStatus`/`removeApp`) and `lifecycle.ts` (`idleTimers` + `scheduleTeardown`/`teardown`).
   - `lib/` — `html.ts` (`extractHTML`), `logger.ts` (`createLogger(scope)`).
   - `types.ts` — orchestrator-internal types only (`AppEntry`). The wire contract lives in `@zearch/shared`. Imports use `.js` extensions (NodeNext) even though files are `.ts`.
-- **`packages/shared/`** (`@zearch/shared`) — the single API contract (`DeployResult`, `DeployResponse`, `DeploymentStatus`, `GenerateResponse`, …). Pure types, imported with `import type` on both sides, so it adds **zero runtime dependency** — only the type-checker enforces that orchestrator and frontend agree on the wire shape.
+- **`packages/shared/`** (`@zearch/shared`) — the single API contract (`DeployResult`, `DeployResponse`, `DeploymentStatus`, `GenerateResponse`, …, `BuildSpec` (`{ intent, archetype, designDirection, presentation, facts[] (+sources), images[], liveEndpoint?, snapshot? }`), `BuildSpecFact`, `BuildSpecImage`, `LiveEndpoint`, and `ArchetypeSlug`). Pure types, imported with `import type` on both sides, so it adds **zero runtime dependency** — only the type-checker enforces that orchestrator and frontend agree on the wire shape.
 - **`apps/frontend/`** (`@zearch/frontend`) — Vite + React 18 + Tailwind SPA. Dev port **5173**; preview/prod **8080**. `VITE_ORCH_URL` points at the orchestrator (default `http://localhost:8080`). `src/` is split: `App.tsx` (thin wiring), `hooks/useGeneration.ts` (the generate→deploy→poll→update→teardown state machine), `api/client.ts` (`postJSON`/`getStatus`), `components/*` (Header, Hero, PromptBox, Examples, BuildingCard, AppViewer, ErrorCard, Footer), `types.ts`.
 
 ### Request flow (frontend → orchestrator)
 `POST /api/generate` (prompt → html) → `POST /api/deploy` (html → id/projectId/serviceId/serviceUrl/deploymentId + tearDownAt) → frontend polls `GET /api/status/:deploymentId` every 5s (native deploys report `healthy` on the first poll). `POST /api/update` re-generates from previous HTML + an update prompt (then deploy again). `POST /api/teardown` deletes the app (memory + disk) immediately. The deploy response keeps the old Locus field names (`projectId`/`serviceId`/`deploymentId`) — they now all map to the single native app id, so the frontend contract is unchanged.
 
-The frontend stage machine (`generating → packaging → pushing → building → deploying → healthy`) is now mostly cosmetic, since native hosting is instant.
+The frontend stage machine shows **Planning → Researching → Building → Ready**, matching the Architect (Planning/Researching) and Builder (Building) pipeline stages. `POST /api/update` re-generates from previous HTML + an update prompt using `generateAppHTML` (Builder-only flat path — no new Architect loop). `GET /api/live` is a CORS-bypass proxy for live-data pages (Phase D): forwards client-side fetches to a real API, injects keys server-side, and serves a lazy-eviction in-memory cache.
 
 ## Commands
 
@@ -53,9 +54,11 @@ There are no tests. Type-checking is the only static check.
 The server boots regardless, logs the active provider, and warns if its key is missing; `/api/generate` and `/api/update` then fail.
 
 LLM provider selection:
-- `LLM_PROVIDER` — `groq` (default) or `openai`.
-- Groq provider: `GROQ_API_KEY` (required), `GROQ_MODEL` (default `openai/gpt-oss-120b`), `GROQ_MAX_TOKENS` (default `7000`), `GROQ_BASE_URL`/`GROQ_BASE` (default Groq), `GROQ_REASONING_EFFORT` (default `low`).
-- OpenAI provider: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (default `gpt-4o-mini`), `OPENAI_MAX_TOKENS` (default `16000`), `OPENAI_BASE_URL` (default OpenAI; override to drive any OpenAI-compatible endpoint).
+- `LLM_PROVIDER` — `openai` (the active provider for all Architect + Builder calls) or `groq` (legacy fallback).
+- OpenAI provider (current): `OPENAI_API_KEY` (required for the Architect tool loop and Builder generation), `OPENAI_MODEL` (default `gpt-4o-mini`), `OPENAI_MAX_TOKENS` (default `16000`), `OPENAI_BASE_URL` (default OpenAI; override for any OpenAI-compatible endpoint).
+- Groq provider (legacy option): `GROQ_API_KEY`, `GROQ_MODEL` (default `openai/gpt-oss-120b`), `GROQ_MAX_TOKENS` (default `7000`), `GROQ_BASE_URL`/`GROQ_BASE`, `GROQ_REASONING_EFFORT` (default `low`).
+- `TAVILY_API_KEY` — required for the Architect's `web_search` tool. Without it, `web_search` fails silently and the Architect degrades to an ungrounded spec using only `wikipedia_summary` and `image_search`.
+- Live proxy (Phase D): `LIVE_PROXY_ALLOW_HOSTS` (SSRF allowlist), `LIVE_PROXY_CACHE_TTL_S` (cache TTL), `LIVE_PROXY_API_KEY` (optional server-side key injection).
 
 Other:
 - `PUBLIC_BASE` (default `http://localhost:<PORT>`; must be the publicly reachable orchestrator origin so iframe `serviceUrl`s resolve), `APPS_DIR` (default `apps/orchestrator/apps`), `PORT`.
@@ -66,9 +69,7 @@ Frontend: `VITE_ORCH_URL` to point at a non-local orchestrator.
 
 ## Gotchas
 
-- The README's "Getting Started" (`cd backend`, `node index.js`, Locus keys) is **stale** — the backend is `apps/orchestrator/` (run from the repo root via `npm run dev`), the keys are Groq, and there is no `backend/` dir. (Phase 1 task P1-5 rewrites it.)
-- Free Groq tiers cap **tokens-per-minute** (e.g. 8000 TPM). `max_completion_tokens` counts toward that budget, so the default `GROQ_MAX_TOKENS` is a modest 7000 — a 16000 request returns HTTP 413. Raise it via env on a higher tier. `/api/update` is especially exposed: it sends the entire previous HTML back as input, which can blow the TPM budget on its own.
-- `prompts/shared.ts`'s `SYSTEM_PROMPT` is load-bearing: it pins exact CDN script URLs/order (React 18 UMD, Recharts 2.15.4, Babel standalone, Tailwind CDN) and the Recharts/`window.Recharts` destructure. Generated apps are babel-in-browser. Edit it carefully — changes directly affect whether generated apps render. (Still financial-calculator flavored from v0; Phase 1 task P1-1 rewrites it for informational pages.)
-- The frontend still contains **stale Locus/Claude UI copy** (Header "powered by Locus Build" in `components/Header.tsx`, `components/Footer.tsx`, and `statusNote` strings like "Locus is building the container" in `hooks/useGeneration.ts`). These are cosmetic and were intentionally left unchanged during the Phase R restructure — Phase 1 task P1-3 rewrites them.
+- **Groq TPM cap no longer applies** (D15): OpenAI is the active provider. Groq remains a `LLM_PROVIDER=groq` option but is not the recommended path.
+- `prompts/shared.ts`'s `SYSTEM_PROMPT` is load-bearing: it pins exact CDN script URLs/order (React 18 UMD, Recharts 2.15.4, Babel standalone, Tailwind CDN) and the Recharts/`window.Recharts` destructure. Generated apps are babel-in-browser. Edit it carefully — changes directly affect whether generated apps render.
 - `serviceUrl` is an absolute URL built from `PUBLIC_BASE`. The frontend iframes it directly, so a wrong `PUBLIC_BASE` (e.g. defaulting to localhost in prod) breaks app display even though deploy "succeeds."
 - App store and teardown timers live in process memory; the HTML is also mirrored to `APPS_DIR` on disk, but the `apps` Map and scheduled teardowns are **not** rebuilt from disk on restart — a restart drops live status and pending teardowns.
