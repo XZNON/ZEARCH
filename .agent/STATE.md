@@ -5,8 +5,23 @@
 
 ## Last Updated
 
-- **Date:** 2026-06-16
+- **Date:** 2026-06-19
 - **Contributor:** XZNON (solo)
+- **Session summary (2026-06-19, Phase C):** **Phase C — Builder: COMPLETE (C1–C2), not committed.**
+  Built the Builder in one new file (`apps/orchestrator/src/pipeline/builder.ts`), still ADDITIVE
+  (nothing wired into the live pipeline; cutover is Phase E). **C1** — `runBuilder({ spec, provider? }) → Promise<string>`:
+  `buildUserMessage(spec)` constructs the grounded-content user turn (numbered facts with inline
+  source citations, images section omitted when empty, explicit note for empty-facts path, override
+  phrase for grounded image URLs). `composeSystemPrompt(spec.archetype)` supplies the system prompt
+  (CDN block byte-for-byte via `hard-requirements.ts` — not duplicated in builder.ts). **C2** —
+  validate/repair loop embedded inside `runBuilder` (MAX_ATTEMPTS=3): `validateAppHTML` after each
+  attempt; on failure, corrective feedback appended to the next user message with an explicit
+  "preserve ALL grounded facts/images/design direction" directive (differs from generate.ts to prevent
+  the model stripping content on retry); all-attempts failure returns `lastHtml` (never throws).
+  **Verification:** `npm run typecheck` green; smoke test (Ada Lovelace, grounded): valid:true,
+  title found, html length 17787; smoke test (empty facts): valid:true, title found, html length 21366.
+  Branch `feature/agentic-core-phase-c`, **awaiting the user's commit**. **Next: Phase D (live data)
+  or Phase E (cutover) — see TASKS.md.**
 - **Session summary (2026-06-16, Phase B):** **Phase B — Architect: COMPLETE (B1–B2), not committed.**
   Built the tool-loop brain, still ADDITIVE (nothing wired into the live pipeline; cutover is Phase E).
   **B1** — `runArchitect(query) → BuildSpec` in `apps/orchestrator/src/pipeline/architect.ts`: an
@@ -59,9 +74,9 @@
 
 ## Current Phase
 
-- **Milestone:** **Agentic Core re-architecture — Phase B (Architect) ✅ COMPLETE (not committed). Phase C (Builder) is next.**
+- **Milestone:** **Agentic Core re-architecture — Phase C (Builder) ✅ COMPLETE (not committed). Phase D or E is next.**
   (Phase 2 — Archetype routing was ✅ done, but its classify/cutover wiring is now superseded.)
-- **Overall progress:** Phase 0 ✅ · Phase R ✅ · Phase 1 ✅ · Phase 2 ✅ (wiring superseded) · Phase A ✅ (uncommitted) · **Phase B ✅ (uncommitted)** · Phase C–E — planned, not started.
+- **Overall progress:** Phase 0 ✅ · Phase R ✅ · Phase 1 ✅ · Phase 2 ✅ (wiring superseded) · Phase A ✅ (uncommitted) · Phase B ✅ (uncommitted) · **Phase C ✅ (uncommitted)** · Phase D–E — planned, not started.
 - **Status:** Plan re-architected to **Architect → Builder** (see `PLAN.md` §3, D12–D15). The
   live pipeline today still runs the Phase 2 `classify→composeSystemPrompt→generate` path; it stays
   as-is until **Phase E** rewires `runGeneration` to Architect→Builder and retires `classify.ts`.

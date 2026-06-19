@@ -86,8 +86,8 @@
 
 | id   | title                                                                                                                                       | area      | status | deps   |
 | ---- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------- | ------ | ------ |
-| C1   | `runBuilder(spec) → html`: compose render contract (`hard-requirements.ts`, CDN block byte-for-byte) + Build Spec; single strong generation call | generator | todo   | A5     |
-| C2   | Validate + repair loop — check `#root`/required CDNs/parseable, auto-retry on failure so broken pages never reach the iframe (absorbs old P4-2/P4-3) | generator | todo   | C1     |
+| C1   | `runBuilder(spec) → html`: compose render contract (`hard-requirements.ts`, CDN block byte-for-byte) + Build Spec; single strong generation call | generator | done   | A5     |
+| C2   | Validate + repair loop — check `#root`/required CDNs/parseable, auto-retry on failure so broken pages never reach the iframe (absorbs old P4-2/P4-3) | generator | done   | C1     |
 
 ## Phase D — Live data
 
