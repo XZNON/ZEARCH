@@ -93,8 +93,8 @@
 
 | id   | title                                                                                                                                  | area         | status | deps         |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------ | ------ | ------------ |
-| D1   | `/api/live` proxy on the orchestrator — CORS bypass + server-side key injection + cache hook, so generated pages can fetch live APIs   | orchestrator | todo   | —            |
-| D2   | Live-with-snapshot pattern: Architect emits a live-endpoint spec **+** a build-time snapshot; Builder writes the page to fetch live through `/api/live` and fall back to the snapshot on failure | generator    | todo   | D1, B1, C1   |
+| D1   | `/api/live` proxy on the orchestrator — CORS bypass + server-side key injection + cache hook, so generated pages can fetch live APIs   | orchestrator | done   | —            |
+| D2   | Live-with-snapshot pattern: Architect emits a live-endpoint spec **+** a build-time snapshot; Builder writes the page to fetch live through `/api/live` and fall back to the snapshot on failure | generator    | done   | D1, B1, C1   |
 
 ## Phase E — Cutover, frontend, docs
 

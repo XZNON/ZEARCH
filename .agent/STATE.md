@@ -7,6 +7,9 @@
 
 - **Date:** 2026-06-19
 - **Contributor:** XZNON (solo)
+- **Session summary (2026-06-19, Phase D):** **Phase D — Live Data: COMPLETE (D1–D2), not committed.**
+  **D1** — New `apps/orchestrator/src/routes/live.ts`: CORS-bypass proxy route (`GET /live`, `OPTIONS /live`) with allowlist guard (SSRF), AbortController 15s timeout, lazy-eviction in-memory cache (`X-Cache: HIT/MISS`). Three new env vars in `config.ts` (`LIVE_PROXY_ALLOW_HOSTS`, `LIVE_PROXY_CACHE_TTL_S`, `LIVE_PROXY_API_KEY`). `server.ts` mounts `liveRouter` at `/api` before `appsRouter`.
+  **D2** — `prompts/architect.ts`: replaced the sparse liveEndpoint/snapshot two-liner with a full expanded block covering when to use it, four named keyless APIs (Open-Meteo, Open-Notify, CoinGecko, exchangerate.host), the url/description/shape sub-fields, and the requirement to still populate facts[]. Added "Current weather in London" routing example. `pipeline/builder.ts`: `buildUserMessage` now builds a `liveBlock` (non-empty only when `spec.liveEndpoint` is defined) appended before the closing HTML instruction — contains the proxy fetch pattern, the React useState/useEffect template with status badge, and the build-time snapshot as a JSON literal. Correction message extended to preserve the live useEffect on retry. **Verification:** `npm run typecheck` green across all workspaces. Branch `feature/agentic-core-phase-d`, **awaiting the user's commit**. **Next: Phase E (cutover).**
 - **Session summary (2026-06-19, Phase C):** **Phase C — Builder: COMPLETE (C1–C2), not committed.**
   Built the Builder in one new file (`apps/orchestrator/src/pipeline/builder.ts`), still ADDITIVE
   (nothing wired into the live pipeline; cutover is Phase E). **C1** — `runBuilder({ spec, provider? }) → Promise<string>`:
@@ -74,7 +77,7 @@
 
 ## Current Phase
 
-- **Milestone:** **Agentic Core re-architecture — Phase C (Builder) ✅ COMPLETE (not committed). Phase D or E is next.**
+- **Milestone:** **Agentic Core re-architecture — Phase D (Live Data) ✅ COMPLETE (not committed). Phase E (cutover) is next.**
   (Phase 2 — Archetype routing was ✅ done, but its classify/cutover wiring is now superseded.)
 - **Overall progress:** Phase 0 ✅ · Phase R ✅ · Phase 1 ✅ · Phase 2 ✅ (wiring superseded) · Phase A ✅ (uncommitted) · Phase B ✅ (uncommitted) · **Phase C ✅ (uncommitted)** · Phase D–E — planned, not started.
 - **Status:** Plan re-architected to **Architect → Builder** (see `PLAN.md` §3, D12–D15). The
