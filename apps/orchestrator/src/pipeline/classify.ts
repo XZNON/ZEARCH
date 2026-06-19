@@ -1,3 +1,7 @@
+// RETIRED in Phase E. classifyQuery is no longer called by the pipeline.
+// pipeline/index.ts now routes through runArchitect → runBuilder.
+// This file is kept for reference. Safe to delete once Phase E is confirmed stable.
+
 // Stage A of the generation pipeline — classify a raw query into one of the seven archetypes.
 // Calls the cheap model tier (P2-4) with the prebuilt CLASSIFY_SYSTEM_PROMPT, parses the strict
 // JSON it returns, and normalizes/validates it into a ClassifyResult.

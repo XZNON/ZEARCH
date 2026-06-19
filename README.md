@@ -63,11 +63,15 @@ Every query maps to an archetype, which decides the page's shape:
 ```text
 Prompt
   ↓
-LLM (Groq) generates a single self-contained HTML page (React + Tailwind + Recharts via CDN)
+Architect (OpenAI function-calling loop) — plans page type, researches topic via tools
+  (web_search / wikipedia_summary / image_search) → emits a structured Build Spec
+  ↓
+Builder (OpenAI generation call) — turns Build Spec into a single self-contained HTML page
+  (React + Tailwind + Recharts via CDN, Babel-in-browser); validate + repair loop
   ↓
 Orchestrator stores the HTML (memory + disk) and serves it at /app/:id
   ↓
-Frontend iframes the live page (follow-up prompts regenerate / refine it)
+Frontend iframes the live page (follow-up prompts regenerate / refine — Builder-only re-gen)
   ↓
 Auto teardown after 30 min idle
 ```
@@ -79,7 +83,7 @@ file, "hosting" just means storing the HTML and serving it natively from the orc
 
 ## 🧰 Tech stack
 
-- 🤖 **Groq** (OpenAI-compatible API) — LLM generation; default model `openai/gpt-oss-120b`
+- 🤖 **OpenAI** — LLM for all calls (Architect tool loop + Builder generation); `gpt-4o-mini` default, swappable via `OPENAI_MODEL`
 - 🟢 **Node.js + Express** (TypeScript, ESM, run via `tsx`) — orchestrator backend (`:8080`)
 - ⚛️ **Vite + React 18 + Tailwind** — frontend SPA (`:5173` dev)
 - 🎨 **React + Tailwind + Recharts via CDN** — the generated pages (Babel-in-browser)
@@ -100,10 +104,10 @@ file, "hosting" just means storing the HTML and serving it natively from the orc
    ```
 3. **Set environment variables** — create a `.env` file at the **repo root**:
    ```
-   GROQ_API_KEY="your_groq_api_key"
+   OPENAI_API_KEY="your_openai_api_key"
+   TAVILY_API_KEY="your_tavily_api_key"
    ```
-   Optional overrides (see `CLAUDE.md` for the full list): `LLM_PROVIDER` (`groq` default, or `openai`),
-   `GROQ_MODEL`, `GROQ_MAX_TOKENS` (default `7000`), `PUBLIC_BASE`, `PORT`. Use `KEY="value"` form.
+   Optional overrides (see `CLAUDE.md` for the full list): `LLM_PROVIDER` (`openai` default), `OPENAI_MODEL` (default `gpt-4o-mini`), `PUBLIC_BASE`, `PORT`. Use `KEY="value"` form.
 4. **Run** (orchestrator on `:8080` + frontend dev server on `:5173`, in parallel)
    ```
    npm run dev
@@ -125,9 +129,11 @@ Frontend: `http://localhost:5173`
 
 ## 🛣️ Roadmap
 
-- [ ] **Archetype routing** — classify each query, generate from a per-archetype template
-- [ ] **Grounding** — fetch Wikipedia/Wikimedia summaries + real images before generation
-- [ ] **Render reliability** — validate generated HTML and auto-retry on failure
+- [x] **Agentic pipeline** — Architect tool loop → Build Spec → Builder with validate/repair loop
+- [x] **Archetype routing** — Architect decides page type; per-archetype render contract
+- [x] **Grounding** — real Wikipedia facts + Wikimedia images in every Build Spec
+- [x] **Render reliability** — validate/repair loop; broken pages never reach the iframe
+- [x] **Live data** — generated pages can fetch live APIs through /api/live proxy with snapshot fallback
 - [ ] **Persistence & sharing** — opt-in "keep this page" shareable links
 - [ ] **Search history** — recents strip, repeat-query caching
 

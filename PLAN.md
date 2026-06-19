@@ -95,17 +95,13 @@ regenerate from previous HTML + an update instruction (Builder-only, no new tool
 `generator.ts` talks to an **OpenAI-compatible `/chat/completions`** endpoint, so the provider
 is config, not code:
 
-| Knob     | Env var        | Default                                                         |
-| -------- | -------------- | --------------------------------------------------------------- |
-| Base URL | `GROQ_BASE`    | `https://api.groq.com/openai/v1`                                |
-| Model    | `GROQ_MODEL`   | `openai/gpt-oss-120b`                                           |
-| Key      | `GROQ_API_KEY` | _(required; server warns and `/api/generate` fails without it)_ |
+| Knob     | Env var           | Default (OpenAI provider)                                        |
+| -------- | ----------------- | ---------------------------------------------------------------- |
+| Base URL | `OPENAI_BASE_URL` | `https://api.openai.com/v1`                                      |
+| Model    | `OPENAI_MODEL`    | `gpt-4o-mini`                                                    |
+| Key      | `OPENAI_API_KEY`  | _(required; server warns and `/api/generate` fails without it)_  |
 
-**OpenAI for all calls now (D15)** — both the Architect tool loop and the Builder generation. The
-provider seam stays (base URL + key + model), but the free-Groq **TPM cap no longer constrains
-us**, so multi-turn tool loops and large completions are fine. Two roles, not tiers: the
-**Architect** wants strong reasoning + reliable tool-calling; the **Builder** wants long, clean
-HTML output. They can be the same model or two — config, not pipeline.
+**OpenAI for all calls (D15)** — both the Architect tool loop and the Builder generation. Groq is still a valid `LLM_PROVIDER=groq` option but is no longer the default or recommended path.
 
 ---
 
@@ -189,7 +185,7 @@ a second app (e.g. a future `apps/cli`) needs them.
   validate + repair loop so broken pages never reach the iframe (absorbs the old Phase 4).
 - **Phase D — Live data.** The `/api/live` proxy (CORS bypass + key injection) and the
   live-with-snapshot-fallback pattern in the Builder.
-- **Phase E — Cutover, frontend, docs.** Rewire `pipeline/index.ts` to Architect→Builder and
+- **Phase E — Cutover, frontend, docs.** ✅ _done._ Rewire `pipeline/index.ts` to Architect→Builder and
   retire `classify.ts`; a real Planning→Researching→Building frontend feed; docs sweep.
 - **Phase 5 — Persistence & sharing.** Opt-in persistent/shareable links (extend TTL, "keep
   this page"), client-side **search history** (localStorage recents). Rebuild the in-memory
@@ -228,11 +224,15 @@ a second app (e.g. a future `apps/cli`) needs them.
 
 ---
 
-## 8. Immediate next step (awaiting your go)
+## 8. Current status
 
-Begin the **Agentic Core re-architecture** at **Phase A — Tooling foundation**: build the
-pluggable tool registry + `Tool` interface, the Tavily / `wikipedia_summary` / `image_search`
-tools, and the **Build Spec** contract in `@zearch/shared`. That foundation unblocks the Architect
-(Phase B) and Builder (Phase C). Per the `.agent/PROMPTS.md` workflow, the next artifact is
-`.agent/implementations/implementation_PA.md` planning every Phase A task. Tasks are seeded in
-`.agent/TASKS.md`. _No phase is implemented yet._
+**Phases A–E (Agentic Core) are complete.** The shipped pipeline is:
+
+- Tool registry under `apps/orchestrator/src/tools/` (A1–A4) + `BuildSpec` in `@zearch/shared` (A5).
+- `pipeline/architect.ts` — `runArchitect(query) → BuildSpec` OpenAI function-calling loop (B1–B2).
+- `pipeline/builder.ts` — `runBuilder(spec) → html` with validate/repair loop (C1–C2).
+- `/api/live` proxy in `routes/live.ts` with SSRF allowlist and in-memory cache (D1–D2).
+- `pipeline/index.ts` rewired to Architect→Builder; `classify.ts` retired (E1).
+- Frontend stage labels: Planning → Researching → Building → Ready (E2).
+
+**Next:** Phase 5 — Persistence & sharing (P5-1 through P5-3).

@@ -9,14 +9,12 @@ generateRouter.post('/generate', async (req: Request, res: Response) => {
   const { prompt } = (req.body || {}) as { prompt?: string };
   if (!prompt || typeof prompt !== 'string') return res.status(400).json({ error: 'prompt required' });
   try {
-    // Stage A→C: classify → composeSystemPrompt(archetype), with a flat-prompt cutover on
-    // low confidence. classification is null when the cutover fired.
-    const { html, classification } = await runGeneration({ prompt });
+    const { html, archetype, title } = await runGeneration({ prompt });
     res.json({
       html,
       sizeBytes: Buffer.byteLength(html, 'utf8'),
-      archetype: classification?.archetype ?? null,
-      title: classification?.title ?? null,
+      archetype,
+      title,
     });
   } catch (e) {
     console.error('[/generate] error:', e);

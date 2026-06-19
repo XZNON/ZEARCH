@@ -48,8 +48,8 @@ generation pipeline ("screaming architecture"), not generic MVC.
   **8080**. The backend brain.
   - `routes/` — thin HTTP: `generate.ts` (`/api/generate`, `/api/update`), `deploy.ts`
     (`/api/deploy`, `/api/status/:id`, `/api/teardown`), `apps.ts` (`GET /app/:id`).
-  - `pipeline/` — **the core**. `generate.ts` = Stage C; `index.ts` is the seam where Stages A/B
-    compose in later.
+  - `pipeline/` — **the core**. `architect.ts` = `runArchitect(query) → BuildSpec` (tool-calling loop). `builder.ts` = `runBuilder(spec) → html` (validate/repair). `generate.ts` = `generateAppHTML()` (flat path, used by `/api/update`). `index.ts` = `runGeneration()` wired to Architect→Builder. `classify.ts` = retired.
+  - `tools/` — pluggable tool registry. Tools: `web_search` (Tavily), `wikipedia_summary`, `image_search`, `emit-build-spec` (terminal).
   - `llm/` — `providers.ts` (provider abstraction; `groq` default, `openai` built-in) + `client.ts`
     (the only module that talks HTTP to an LLM, OpenAI-compatible `/chat/completions`).
   - `prompts/` — `shared.ts` (the live `SYSTEM_PROMPT`) + **`archetypes/`** (the archetype system,
@@ -67,9 +67,7 @@ polls `GET /api/status/:id` (native hosting reports `healthy` immediately) → `
 re-generates from previous HTML + an update prompt → `POST /api/teardown` deletes it.
 
 ### LLM brain
-Provider is config, not code (D4): an OpenAI-compatible base URL + key + model. Groq today
-(`openai/gpt-oss-120b`); swap to OpenAI/Anthropic by changing env, no pipeline changes. Plan
-(P2-4): a **cheap/fast** model for Stage A classify, a **strong** model for Stage C generate.
+**OpenAI is the active provider** for all calls (Architect + Builder). `OPENAI_API_KEY` + `OPENAI_MODEL` (default `gpt-4o-mini`). Groq remains a swappable option via `LLM_PROVIDER=groq` but is no longer the default. The cheap/strong model tier split (P2-4) was implemented and then superseded by the Agentic Core's single-provider approach.
 
 ---
 
@@ -199,24 +197,21 @@ pages try `/api/live` (live) → fall back to the baked snapshot.
 | **R — Restructure & Monorepo** | Convert to npm workspaces; `apps/` + `packages/shared`; lay out orchestrator + frontend per the pipeline. Behavior-identical. | ✅ done |
 | **1 — Reframe to informational search** | Rewrite `SYSTEM_PROMPT` financial → generic; strip Locus copy; topical examples; archetype showcase + how-it-works UI; theme toggle; honest 3-stage build UI. | ✅ done (P1-6 Napoleon smoke test still open) |
 | **2 — Archetype routing** | Stage A classifier + per-archetype templates + classify→compose→generate wiring + model tiers. | ✅ done — **classify/cutover wiring superseded** by the Agentic Core; templates kept as the Builder's render contract |
-| **A — Tooling foundation** | Tool registry + `Tool` interface; Tavily / `wikipedia_summary` / `image_search` tools; **Build Spec** contract in `@zearch/shared` (§4a). | ⬜ todo — **next** |
-| **B — Architect** | `runArchitect(query) → BuildSpec` tool-loop (bounded, degrades gracefully) + design-reasoning system prompt. | ⬜ todo |
-| **C — Builder** | `runBuilder(spec) → html` (render contract + spec) + validate/repair loop (absorbs old Phase 4). | ⬜ todo |
-| **D — Live data** | `/api/live` proxy (CORS + key injection) + live-with-snapshot-fallback pattern. | ⬜ todo |
-| **E — Cutover, frontend, docs** | Rewire `pipeline/index.ts` to Architect→Builder, retire `classify.ts`; real Planning→Researching→Building UI; docs sweep. | ⬜ todo |
+| **A — Tooling foundation** | Tool registry + `Tool` interface; Tavily / `wikipedia_summary` / `image_search` tools; **Build Spec** contract in `@zearch/shared` (§4a). | ✅ done |
+| **B — Architect** | `runArchitect(query) → BuildSpec` tool-loop (bounded, degrades gracefully) + design-reasoning system prompt. | ✅ done |
+| **C — Builder** | `runBuilder(spec) → html` (render contract + spec) + validate/repair loop (absorbs old Phase 4). | ✅ done |
+| **D — Live data** | `/api/live` proxy (CORS + key injection) + live-with-snapshot-fallback pattern. | ✅ done |
+| **E — Cutover, frontend, docs** | Rewire `pipeline/index.ts` to Architect→Builder, retire `classify.ts`; real Planning→Researching→Building UI; docs sweep. | ✅ done |
 | **5 — Persistence & sharing** | Opt-in shareable/persistent links; client-side search history; rebuild the apps Map + teardown timers from disk on restart. | ⬜ todo |
 | **6 — Hardening** | Generation caching; rate limiting; structured errors in the UI; cost/latency instrumentation across the Architect + Builder calls. | ⬜ todo |
 
 Per-task detail and dependencies live in `.agent/TASKS.md`.
 
-### Immediate next steps
-1. **Phase A** — build the tool registry + `Tool` interface, the Tavily / `wikipedia_summary` /
-   `image_search` tools, and the **Build Spec** contract in `@zearch/shared` (§4a). This unblocks
-   the Architect (B) and Builder (C).
-2. Per the `.agent/PROMPTS.md` workflow, the next artifact is
-   `.agent/implementations/implementation_PA.md` planning every Phase A task.
-3. Then **Phase B** (Architect loop) → **Phase C** (Builder + repair) → **Phase D** (live) →
-   **Phase E** (cutover). _Nothing implemented yet._
+### Current status & next steps
+
+**Phases A–E are complete.** The Agentic Core is fully shipped. The live pipeline is Architect → Builder; `classify.ts` is retired; frontend shows Planning → Researching → Building → Ready.
+
+**Next:** Phase 5 — Persistence & sharing (P5-1 through P5-3). See `.agent/TASKS.md`.
 
 ---
 

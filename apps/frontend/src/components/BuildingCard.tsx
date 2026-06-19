@@ -9,9 +9,10 @@ interface BuildingCardProps {
 }
 
 const PHASES: { id: Stage; label: string }[] = [
-  { id: 'thinking', label: 'Thinking' },
-  { id: 'building', label: 'Building' },
-  { id: 'ready',    label: 'Ready' },
+  { id: 'planning',    label: 'Planning' },
+  { id: 'researching', label: 'Researching' },
+  { id: 'building',    label: 'Building' },
+  { id: 'ready',       label: 'Ready' },
 ];
 
 // Honest, flavorful log lines revealed over time — what's actually happening, dressed up a little.
@@ -49,7 +50,7 @@ export function BuildingCard({ stage, note, elapsed, prompt }: BuildingCardProps
           </div>
 
           {/* 3-phase progress */}
-          <div className="mt-5 grid grid-cols-3 gap-2">
+          <div className="mt-5 grid grid-cols-4 gap-2">
             {PHASES.map((s, i) => (
               <div key={s.id} className="relative h-1.5 rounded-full overflow-hidden bg-[rgb(var(--ink)/0.08)]">
                 <div
@@ -60,7 +61,7 @@ export function BuildingCard({ stage, note, elapsed, prompt }: BuildingCardProps
               </div>
             ))}
           </div>
-          <div className="mt-2 grid grid-cols-3 text-center">
+          <div className="mt-2 grid grid-cols-4 text-center">
             {PHASES.map((s, i) => (
               <span key={s.id} className={`label ${i <= idx ? 'text-ink/75' : 'text-ink/30'}`}>{s.label}</span>
             ))}

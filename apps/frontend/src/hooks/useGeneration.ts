@@ -45,7 +45,11 @@ export function useGeneration() {
     setError(null); setResult(null); setElapsed(0);
     startRef.current = Date.now();
     try {
-      setStage('thinking'); setStatusNote('Thinking…');
+      setStage('planning'); setStatusNote('Planning…');
+      // Brief delay then move to researching to reflect the Architect tool loop
+      setTimeout(() => {
+        setStage('researching'); setStatusNote('Researching…');
+      }, 1500);
       const gen = await postJSON('/api/generate', { prompt: userPrompt });
       if (gen.error) throw new Error(gen.error);
 
@@ -63,7 +67,7 @@ export function useGeneration() {
 
   async function applyUpdate(updatePrompt: string): Promise<boolean> {
     if (!updatePrompt.trim() || !result) return false;
-    setError(null); setStage('thinking'); setStatusNote('Thinking…');
+    setError(null); setStage('planning'); setStatusNote('Rebuilding…');
     try {
       const gen = await postJSON('/api/update', { prompt: result.prompt, previousHtml: result.html, updatePrompt });
       if (gen.error) throw new Error(gen.error);
