@@ -17,3 +17,8 @@ export const APPS_DIR = process.env.APPS_DIR || path.join(__dirname, '..', 'apps
 // Tavily web-search key (Phase A web_search tool). Optional: when unset the tool degrades to a
 // clear ok:false failure rather than throwing. Loaded from the repo-root .env (gitignored).
 export const TAVILY_API_KEY = process.env.TAVILY_API_KEY;
+
+// ── Live Proxy (Phase D) ──────────────────────────────────────────────────
+export const LIVE_PROXY_ALLOW_HOSTS = process.env.LIVE_PROXY_ALLOW_HOSTS ?? '';
+export const LIVE_PROXY_CACHE_TTL_S = Number(process.env.LIVE_PROXY_CACHE_TTL_S) || 60;
+export const LIVE_PROXY_API_KEY     = process.env.LIVE_PROXY_API_KEY ?? '';

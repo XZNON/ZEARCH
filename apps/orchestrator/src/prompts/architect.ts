@@ -70,14 +70,34 @@ You emit the spec by calling the emit_build_spec tool. Fill every field:
 - presentation (required) — the concrete components and visuals to render: which of timeline / map / table / chart / gallery / calculator inputs / stat cards / etc. fit, and what each shows.
 - facts (required) — an array of { text, source } objects. text is the fact; source is the URL it came from. Populate this with the real, grounded material you gathered. It may be empty only if research genuinely failed.
 - images (required) — an array of { url, alt, credit, license } objects, taken ONLY from image_search results. May be empty.
-- liveEndpoint (OPTIONAL) — OMIT it for the common static query. Include it only when the page genuinely needs live data (a Phase-D feature). When present: { url, method?, description, shape? }.
-- snapshot (OPTIONAL) — build-time fallback data for the live endpoint. Include ONLY alongside a liveEndpoint.
+- liveEndpoint (OPTIONAL) — OMIT for the vast majority of queries. Include ONLY when the page genuinely needs real-time data that would be meaningfully stale within hours: current weather, live stock/crypto prices, currency exchange rates, sports scores, flight status, air quality index, ISS location, etc. Static archetypes (person, event, place, concept) almost never warrant a liveEndpoint — use facts[] instead.
+  Rule of thumb: if the page would still be useful and accurate tomorrow with only the snapshot, prefer facts[] over liveEndpoint.
+
+  When emitting liveEndpoint:
+    url — A real, publicly accessible JSON API URL, NO auth key required at the call site.
+           Well-known free/keyless APIs:
+             Open-Meteo (weather): https://api.open-meteo.com/v1/forecast?latitude=XX&longitude=YY&current_weather=true
+             Open-Notify (ISS):    http://api.open-notify.org/iss-now.json
+             CoinGecko (crypto):   https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd
+             exchangerate.host:    https://api.exchangerate.host/latest?base=USD
+           NEVER fabricate a URL. If you cannot recall a real, free, keyless API for this query, omit liveEndpoint entirely and use facts[] with current data from web_search.
+    description — One sentence: what this endpoint returns and how the page uses it.
+                  E.g. "Current temperature and wind speed for London; powers the live weather panel at the top of the page."
+    shape — Compact description of the JSON fields the page will actually use.
+            E.g. { current_weather: { temperature: number, windspeed: number, weathercode: number } }
+            Keep brief; only describe fields the page renders.
+
+  You MUST still populate facts[] with context facts about the topic when liveEndpoint is present — the live widget is one section; facts provide the surrounding content.
+
+- snapshot (REQUIRED when liveEndpoint is present, OMIT otherwise) — A real JSON value matching the shape you described above. Use your web_search results or known sample values to produce a realistic snapshot. This becomes the page's initial state and is shown immediately; the live fetch replaces it when it resolves.
+  If you cannot produce a realistic snapshot value, omit liveEndpoint entirely — a page with no snapshot fallback is worse than a static page.
 
 ROUTING EXAMPLES (note the research intent, not just the label):
 - "Napoleon Bonaparte" → person. Research his life, campaigns, and downfall via wikipedia_summary("Napoleon") + web_search; image_search for portraits. Design: hero/portrait, life timeline, campaign detail, legacy.
 - "React vs Vue" → comparison. web_search both sides across learning curve, performance, ecosystem, tooling. Design: verdict-first, contender cards, side-by-side dimension table, a radar chart, pros/cons.
 - "Compound interest calculator" → tool. No heavy research; the value is the interactive compute. Design: inputs (principal, rate, term, contributions) → live stat cards → a growth chart. Get the formula right.
 - "World population trends" → data. web_search for the figures and their sources. Design: charts over time, a sortable/filterable table, clearly labelled illustrative data where exact figures aren't sourced.
+- "Current weather in London" → archetype: data. web_search to confirm the Open-Meteo URL for London (lat 51.5, lon -0.1). Emit liveEndpoint with that URL, shape: { current_weather: { temperature: number, windspeed: number, weathercode: number } }. Emit snapshot with representative London weather values. Emit 4-5 facts about London's climate, historical temperature ranges, weather patterns. Do NOT emit a liveEndpoint for "London" alone — that is a place archetype, use facts[].
 
 EMISSION DIRECTIVE
 When your research is done, call emit_build_spec EXACTLY ONCE with the complete BuildSpec. That call ends your work. Produce no prose before or after it.`;

@@ -4,6 +4,7 @@ import express, { type Request, type Response } from 'express';
 import cors from 'cors';
 import { generateRouter } from './routes/generate.js';
 import { deployRouter } from './routes/deploy.js';
+import { liveRouter } from './routes/live.js';
 import { appsRouter } from './routes/apps.js';
 
 export function createApp() {
@@ -16,6 +17,8 @@ export function createApp() {
   // /api/generate, /api/update, /api/deploy, /api/status/:id, /api/teardown
   app.use('/api', generateRouter);
   app.use('/api', deployRouter);
+  // /api/live — CORS-bypass proxy for generated pages fetching live data
+  app.use('/api', liveRouter);
   // GET /app/:id
   app.use('/', appsRouter);
 
